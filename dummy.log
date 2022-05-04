@@ -1,0 +1,5 @@
+2022-05-04:23:37:09, D:\Co-pilot SSD M.2\gitgit\ImageScalerBot\looger-demo.py, INFO     [line num:15] Start
+2022-05-04:23:37:13, D:\Co-pilot SSD M.2\gitgit\ImageScalerBot\looger-demo.py, DEBUG    [line num:20] name: leo
+2022-05-04:23:37:13, D:\Co-pilot SSD M.2\gitgit\ImageScalerBot\looger-demo.py, DEBUG    [line num:21] age: 21
+2022-05-04:23:37:13, D:\Co-pilot SSD M.2\gitgit\ImageScalerBot\looger-demo.py, INFO     [line num:26] leo, your age in seconds is 662256000
+2022-05-04:23:37:13, D:\Co-pilot SSD M.2\gitgit\ImageScalerBot\looger-demo.py, INFO     [line num:28] END

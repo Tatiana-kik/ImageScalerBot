@@ -1,14 +1,14 @@
-'''
+"""
 HW8 BI_Python - Telegram Bot for upscaling images.
 Project team members:
      - Kikalova Tatiana
      - Жожиков Леонид
      - Муроцмев Антон
      - Куприянов Семён
-'''
+"""
 import logging
-
 from aiogram import Bot, types
+from aiogram.dispatcher.middlewares import BaseMiddleware
 from aiogram.utils import executor
 from aiogram.utils.emoji import emojize
 from aiogram.dispatcher import Dispatcher
@@ -18,21 +18,54 @@ from aiogram.types import ParseMode
 import shutil
 import cv2
 from config import TOKEN
+from aiogram_logging import Logger, InfluxSender
 
 # enable logging
-logging.basicConfig(format=u'%(filename)s [ LINE:%(lineno)+3s ]'
-                           u'#%(levelname)+8s [%(asctime)s]  %(message)s',
-                    level=logging.INFO)
+logging.basicConfig(
+    filename='bot_logger.log',
+    filemode='a',  # appendn?
+    format=u'%(filename)s [ LINE:%(lineno)+3s ]'u'#%(levelname)+8s [%(asctime)s]  %(message)s',
+    datefmt='%Y-%m-%d:%H:%M:%S',
+    level=logging.DEBUG
+)
 
 # global objects
 bot = Bot(token=TOKEN)
 dp = Dispatcher(bot)
+logger = logging.getLogger()
+
+# logger should save messages in chat
+sender = InfluxSender(host='localhost',
+                      db='db-name',
+                      username='db-user',
+                      password='db-password')
+logger_m = Logger(sender)
+
+
+class StatMiddleware(BaseMiddleware):
+
+    def __init__(self):
+        super(StatMiddleware, self).__init__()
+
+    async def on_process_message(self, message: types.Message, data: dict):
+        await logger_m.write_logs(self._manager.bot.id, message, parse_text=True)
+
+
+dp.middleware.setup(StatMiddleware())
+#
+
+
+# should catch messages with no words
+@dp.message_handler()
+async def echo_message(msg: types.Message):
+    await bot.send_message(msg.from_user.id, msg.text)
 
 
 @dp.message_handler(commands=['start'])
 async def process_start_command(message: types.Message):
     await message.reply('Hi!\nI am Scaler Bot. Type /help '
                         'to know how to use me.')
+    logger.info('start typed')
 
 
 @dp.message_handler(commands=['help'])
@@ -42,13 +75,14 @@ async def process_help_command(message: types.Message):
                'the scaler (any number >1 and <=5). '
                'And I will send you scaled image.')
     await message.reply(msg, parse_mode=ParseMode.MARKDOWN)
+    logger.info('help typed')
 
 
 async def scale_image(img_path_orig: str, img_path_scaled: str, scaler: float):
-    '''
+    """
     This function resizes image by opencv.
     Probably need to change it and use NN for upscaling.
-    '''
+    """
     print(f'orig={img_path_orig}, scaled={img_path_scaled}, scaler=(scaler)')
     # open image by opencv
     img = cv2.imread(img_path_orig, cv2.IMREAD_UNCHANGED)
@@ -61,6 +95,7 @@ async def scale_image(img_path_orig: str, img_path_scaled: str, scaler: float):
     resized = cv2.resize(img, dim, interpolation=cv2.INTER_LINEAR)
     print('Resized Dimensions : ', resized.shape)
     cv2.imwrite(img_path_scaled, resized)
+    logger.info('scaling complete')
 
 
 @dp.message_handler(content_types=['document'])
@@ -68,13 +103,16 @@ async def process_document_message(msg: types.Message):
     # check scaler
     try:
         scaler = float(msg.caption)
+        logger.debug('scale number is fine')
     except BaseException:
         scaler = -1
+        logger.debug('BaseException pops out on input stage')
 
     if not 1 < scaler <= 5:
         msg_text = text(emojize('Bad scaler. :neutral_face:'),
                         'Use any number >1 and <=5 please.')
         await msg.reply(msg_text, parse_mode=ParseMode.MARKDOWN)
+        logger.debug('user misunderstood the scaling number')
         return
 
     # check that document is image
@@ -82,6 +120,7 @@ async def process_document_message(msg: types.Message):
         msg_text = text(emojize('Bad document. :neutral_face:'),
                         'This is not an image.')
         await msg.reply(msg_text, parse_mode=ParseMode.MARKDOWN)
+        logger.debug('unknown thing added instead of image')
         return
 
     # make pahts
@@ -89,18 +128,22 @@ async def process_document_message(msg: types.Message):
     img_path_orig = user_dir + msg.document.file_name
     img_path_scaled = '{0}_{2}.{1}'.format(*img_path_orig.rsplit('.', 1) +
                                            [f'scaled_{scaler}'])
+    logger.debug('paths created')
 
     # download image
     await msg.document.download(img_path_orig)
+    logger.debug('image downloaded')
 
     # scale image
     try:
         await scale_image(img_path_orig, img_path_scaled, scaler)
+        logger.debug('scaling stage processed')
     except BaseException:
         msg_text = text(emojize('I can\'t scale this image. '
                                 'Something went wrong. '
                                 ':face_with_spiral_eyes:'))
         await msg.reply(msg_text, parse_mode=ParseMode.MARKDOWN)
+        logger.debug('BaseException pops out on scaling stage')
         return
 
     # send reply
@@ -110,14 +153,18 @@ async def process_document_message(msg: types.Message):
         await bot.send_document(msg.from_user.id, result_file,
                                 caption=caption,
                                 reply_to_message_id=msg.message_id)
+        logger.debug('opening and sending image in return')
+
     except BaseException:
         msg_text = text('Scaled, but I can\'t send you the file. '
                         'Something went wrong. ',
                         emojize(':face_with_spiral_eyes:'))
         await msg.reply(msg_text, parse_mode=ParseMode.MARKDOWN)
+        logger.debug('BaseException pops out in sending stage')
 
     # remove user files
     shutil.rmtree(user_dir)
+    logger.info('photo is processed')
 
 
 @dp.message_handler(content_types=['photo'])
@@ -127,6 +174,7 @@ async def process_photo_message(msg: types.Message):
                         bold('document'), ' (as file) please.',
                         '\nUse /help please.')
     await msg.reply(message_text, parse_mode=ParseMode.MARKDOWN)
+    logger.info('just photo sent without num')
 
 
 @dp.message_handler(content_types=ContentType.ANY)
@@ -135,9 +183,12 @@ async def unknown_message(msg: types.Message):
                         emojize(':astonished:'),
                         '\nUse /help please.')
     await msg.reply(message_text, parse_mode=ParseMode.MARKDOWN)
+    logger.info('unknown thing sent')
 
 
 if __name__ == '__main__':
 
     # start bot
     executor.start_polling(dp)
+
+logger.info('END')

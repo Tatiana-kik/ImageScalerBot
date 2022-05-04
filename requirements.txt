@@ -1,0 +1,2 @@
+aiogram~=2.20
+opencv-python~=4.5.5.64

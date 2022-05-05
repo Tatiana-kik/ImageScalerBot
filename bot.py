@@ -17,6 +17,7 @@ from aiogram.utils.markdown import text, bold
 from aiogram.types import ParseMode
 import shutil
 import cv2
+from cv2 import dnn_superres
 from config import TOKEN
 
 # enable logging
@@ -50,16 +51,28 @@ async def scale_image(img_path_orig: str, img_path_scaled: str, scaler: float):
     Probably need to change it and use NN for upscaling.
     '''
     print(f'orig={img_path_orig}, scaled={img_path_scaled}, scaler=(scaler)')
-    # open image by opencv
-    img = cv2.imread(img_path_orig, cv2.IMREAD_UNCHANGED)
-    print('Original Dimensions : ', img.shape)
-    # calculate new demension
-    width = int(img.shape[1] * scaler)
-    height = int(img.shape[0] * scaler)
-    dim = (width, height)
-    # resize image
-    resized = cv2.resize(img, dim, interpolation=cv2.INTER_LINEAR)
-    print('Resized Dimensions : ', resized.shape)
+    # Create an SR object
+    sr = dnn_superres.DnnSuperResImpl_create()
+
+    # Read image
+    image = cv2.imread(path_to_img)
+    
+    # Detect path to model
+    if scaler <= 2:
+        path_to_model = './EDSR_x2.pb'
+    elif scaler <= 3:
+        path_to_model = './EDSR_x3.pb'
+    else:
+        path_to_model = './EDSR_x4.pb'
+    
+    # Read the desired model
+    sr.readModel(path_to_model)
+    
+    # Set the desired model and scale to get correct pre- and post-processing
+    sr.setModel("edsr", scaler)
+    resized = sr.upsample(image)
+    
+    # Save 
     cv2.imwrite(img_path_scaled, resized)
 
 

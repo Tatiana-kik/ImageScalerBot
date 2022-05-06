@@ -40,38 +40,37 @@ async def process_start_command(message: types.Message):
 async def process_help_command(message: types.Message):
     msg = text('Send me an image as a document to scale it '
                'and write in comment '
-               'the scaler (any number >1 and <=5). '
+               'the scaler (2, 3 or 4). '
                'And I will send you scaled image.')
     await message.reply(msg, parse_mode=ParseMode.MARKDOWN)
 
 
-async def scale_image(img_path_orig: str, img_path_scaled: str, scaler: float):
+async def scale_image(img_path_orig: str, img_path_scaled: str, scaler: int):
     '''
-    This function resizes image by opencv.
-    Probably need to change it and use NN for upscaling.
+    This function resizes image by EDSR neural network.
     '''
-    print(f'orig={img_path_orig}, scaled={img_path_scaled}, scaler=(scaler)')
+    print(f'orig={img_path_orig}, scaled={img_path_scaled}, scaler={scaler}')
     # Create an SR object
     sr = dnn_superres.DnnSuperResImpl_create()
 
     # Read image
-    image = cv2.imread(path_to_img)
-    
+    image = cv2.imread(img_path_orig)
+
     # Detect path to model
-    if scaler <= 2:
+    if scaler == 2:
         path_to_model = './EDSR_x2.pb'
-    elif scaler <= 3:
+    elif scaler == 3:
         path_to_model = './EDSR_x3.pb'
     else:
         path_to_model = './EDSR_x4.pb'
-    
+
     # Read the desired model
     sr.readModel(path_to_model)
-    
+
     # Set the desired model and scale to get correct pre- and post-processing
     sr.setModel("edsr", scaler)
     resized = sr.upsample(image)
-    
+
     # Save 
     cv2.imwrite(img_path_scaled, resized)
 
@@ -80,13 +79,13 @@ async def scale_image(img_path_orig: str, img_path_scaled: str, scaler: float):
 async def process_document_message(msg: types.Message):
     # check scaler
     try:
-        scaler = float(msg.caption)
+        scaler = int(msg.caption)
     except BaseException:
         scaler = -1
 
-    if not 1 < scaler <= 5:
+    if scaler not in [2, 3, 4]:
         msg_text = text(emojize('Bad scaler. :neutral_face:'),
-                        'Use any number >1 and <=5 please.')
+                        'Use 2, 3 or 4 please.')
         await msg.reply(msg_text, parse_mode=ParseMode.MARKDOWN)
         return
 

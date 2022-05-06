@@ -30,10 +30,15 @@ To use the bot follow listed steps:
 For this telegram bot the `aiogram` framework was used.
 ...
 
-## 5. Image Upscaling Implementation
+## 5. Logging Implementation
+
+"Logging" module was used for logging.
+It saves all info and debug level notes in "bot_logger.log" file in "append" mode.
+
+## 6. Image Upscaling Implementation
 ...
 
-## 6. ToDo
+## 7. ToDo
 
 1. Improve upscaling by using the algorythms for scaling without quality loss.
 Such algorythms are used in the neural network.

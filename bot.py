@@ -33,13 +33,6 @@ dp = Dispatcher(bot)
 logger = logging.getLogger()
 
 
-# should catch messages with no words
-@dp.message_handler()
-async def echo_message(msg: types.Message):
-    logger.info('message with no words typed')
-    await bot.send_message(msg.from_user.id, msg.text)
-
-
 @dp.message_handler(commands=['start'])
 async def process_start_command(message: types.Message):
     await message.reply('Hi!\nI am Scaler Bot. Type /help '

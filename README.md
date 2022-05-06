@@ -7,7 +7,6 @@ HW8 BI_Python - Telegram Bot for upscaling images.
 Project team members:
 - Kikalova Tatiana
 - Жожиков Леонид
-- Муроцмев Антон
 - Куприянов Семён
 
 
@@ -28,9 +27,13 @@ To use the bot follow listed steps:
 ## 4. Telegram Bot Implementation
 
 For this telegram bot the `aiogram` framework was used.
-...
 
-## 5. Image Upscaling Implementation
+## 5. Logging Implementation
+
+"Logging" module was used for logging.
+It saves all info and debug level notes in "bot_logger.log" file in "append" mode.
+
+## 6. Image Upscaling Implementation
 
 We used the model *EDSR*
 
@@ -47,18 +50,3 @@ Model characteristics:
 - Speed: < 3 sec for every scaling factor on 256x256 images on an Intel i7-9700K CPU.
 
 Original paper: https://arxiv.org/pdf/1707.02921.pdf
-
-## 6. ToDo
-
-1. Improve upscaling by using the algorythms for scaling without quality loss.
-Such algorythms are used in the neural network.
-1. Add loging (to log each user activity) to be able to debug the program.
-1. Add tests:<br>
-- one test for each image format, png, jpg, etc.
-- couple of upscale tests
-- one test per error message - if the file is wrong, so that the message is correct
-- add functionality according to the next Python tasks (HWs, April 30)
-- functional testing as an option.
-See comments from Roman in Telegram chat "PythonProject_ImageScaler")
-1. Add requirements.txt (at the end of the project)
-1. Update ReadMe (at the end of the project)

@@ -16,6 +16,7 @@ from aiogram.utils.markdown import text, bold
 from aiogram.types import ParseMode
 import shutil
 import cv2
+from cv2 import dnn_superres
 from config import TOKEN
 
 # enable logging
@@ -44,29 +45,40 @@ async def process_start_command(message: types.Message):
 async def process_help_command(message: types.Message):
     msg = text('Send me an image as a document to scale it '
                'and write in comment '
-               'the scaler (any number >1 and <=5). '
+               'the scaler (2, 3 or 4). '
                'And I will send you scaled image.')
     await message.reply(msg, parse_mode=ParseMode.MARKDOWN)
     logger.info('help typed')
 
 
-async def scale_image(img_path_orig: str, img_path_scaled: str, scaler: float):
-    """
-    This function resizes image by opencv.
-    Probably need to change it and use NN for upscaling.
-    """
+async def scale_image(img_path_orig: str, img_path_scaled: str, scaler: int):
+    '''
+    This function resizes image by EDSR neural network.
+    '''
     logger.info('scaling started')
-    print(f'orig={img_path_orig}, scaled={img_path_scaled}, scaler=(scaler)')
-    # open image by opencv
-    img = cv2.imread(img_path_orig, cv2.IMREAD_UNCHANGED)
-    print('Original Dimensions : ', img.shape)
-    # calculate new demension
-    width = int(img.shape[1] * scaler)
-    height = int(img.shape[0] * scaler)
-    dim = (width, height)
-    # resize image
-    resized = cv2.resize(img, dim, interpolation=cv2.INTER_LINEAR)
-    print('Resized Dimensions : ', resized.shape)
+    logger.debug(f'orig={img_path_orig}, scaled={img_path_scaled}, scaler={scaler}')
+    # Create an SR object
+    sr = dnn_superres.DnnSuperResImpl_create()
+
+    # Read image
+    image = cv2.imread(img_path_orig)
+
+    # Detect path to model
+    if scaler == 2:
+        path_to_model = './EDSR_x2.pb'
+    elif scaler == 3:
+        path_to_model = './EDSR_x3.pb'
+    else:
+        path_to_model = './EDSR_x4.pb'
+
+    # Read the desired model
+    sr.readModel(path_to_model)
+
+    # Set the desired model and scale to get correct pre- and post-processing
+    sr.setModel("edsr", scaler)
+    resized = sr.upsample(image)
+
+    # Save 
     cv2.imwrite(img_path_scaled, resized)
     logger.info('scaling completed')
 
@@ -76,15 +88,15 @@ async def process_document_message(msg: types.Message):
     logger.info('user input processing started')
     # check scaler
     try:
-        scaler = float(msg.caption)
-        logger.debug('users scale number is fine')
+        scaler = int(msg.caption)
+        logger.debug(f'users scale number={scaler} is fine')
     except BaseException:
         scaler = -1
         logger.debug('BaseException pops out on input stage')
 
-    if not 1 < scaler <= 5:
+    if scaler not in [2, 3, 4]:
         msg_text = text(emojize('Bad scaler. :neutral_face:'),
-                        'Use any number >1 and <=5 please.')
+                        'Use 2, 3 or 4 please.')
         await msg.reply(msg_text, parse_mode=ParseMode.MARKDOWN)
         logger.debug('user misunderstood the scaling number')
         return
